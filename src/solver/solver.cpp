@@ -50,6 +50,25 @@ void solvePar(int rows, int cols, int iterations, double td, double h, int sleep
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
+    int *rowOrderMatrix = NULL; // same as "matrix" but rearranged into a row major order matrix
+
+    int previousLocalEntry; // matrix entry from [i][j-1]
+    int localEntry;         // matrix entry from [i][j]
+
+    if (rank == 0)
+    {
+        rowOrderMatrix = allocateRowOrderMatrix(8, 8);                // allocate the memory for the matrix
+        fillRowOrderMatrix(rowOrderMatrix, initialValue, ROWS, COLS); // fills the matrix with the initial value
+        gettimeofday(&timestamp_s, NULL);                             // sets the execution's start time
+    }
+
+    // Scatter the matrix values into 64 processes with 1 matrix-entry each
+    // The data will be scattered in a way that each process can know the row and col of it's value based on his rank
+    MPI_Scatter(rowOrderMatrix, 1, MPI_INT, &localEntry, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    int row = floor(rank / rows); // calculates the row of the entry in the process based on the rank
+    int col = rank - row * rows;  // calculates the col of the entry in the process based on teh rank
+
     double c, l, r, t, b;
 
     double h_square = h * h;
@@ -72,6 +91,9 @@ void solvePar(int rows, int cols, int iterations, double td, double h, int sleep
             }
         }
     }
+
+    // retrieve the final data and gathers it in the process at rank = 0
+    MPI_Gather(&localEntry, 1, MPI_INT, matrix, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
     if (0 != rank)
     {
