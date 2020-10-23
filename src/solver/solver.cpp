@@ -3,6 +3,7 @@
 #include <thread>
 
 #include <mpi.h>
+#include <math.h> 
 
 #include "solver.hpp"
 #include "../matrix/matrix.hpp"
@@ -43,9 +44,22 @@ void solveSeq(int rows, int cols, int iterations, double td, double h, int sleep
     }
 }
 
-void solvePar(int rows, int cols, int iterations, double td, double h, int sleep, double ** matrix) {
+void solvePar(int rows, int cols, int k, double td, double h, int sleep, double ** matrix) {
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    // Conductivity
+    int C = 1;
+
+    double h_square = h * h;
+
+    for (int i=0; i<rows; ++i)
+    {
+        for (int j=0; j<cols; ++j)
+        {
+            matrix[i, j] = (1 - 4 * td / h_square) * matrix[i, j] + (td / h_square) * (matrix[i-1, j]+matrix[i+1, j]+matrix[i, j-1]+matrix[i, j+1]);
+        }
+    }
 
     if(0 != rank) {
         deallocateMatrix(rows, matrix);
