@@ -16,7 +16,6 @@ using std::chrono::microseconds;
 
 void solveSeq(int rows, int cols, int iterations, double td, double h, int sleep, double * matrix) {
     double c, l, r, t, b;
-    // double c0, l0, r0, t0, b0;
     
     double h_square = h * h;
 
