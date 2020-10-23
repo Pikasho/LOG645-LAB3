@@ -65,8 +65,10 @@ void solvePar(int rows, int cols, int iterations, double td, double h, int sleep
                 r = matrix[i + 1][j];
                 t = matrix[i][j - 1];
                 b = matrix[i][j + 1];
-                matrix[i][j] = (1 - 4 * td / h_square) * c + (td / h_square) * (l + r + t + b);
+
                 sleep_for(microseconds(500000));
+
+                matrix[i][j] = (1 - 4 * td / h_square) * c + (td / h_square) * (l + r + t + b);
             }
         }
     }
