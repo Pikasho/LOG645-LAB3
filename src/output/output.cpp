@@ -25,6 +25,19 @@ void printMatrix(int rows, int cols, double ** matrix) {
     cout << endl << flush;
 }
 
+void printRowOrderMatrix(double *matrix, int rows, int cols)
+{
+    for(int row = 0; row < rows; row++) {
+        for(int col = 0; col < cols; col++) {
+            cout << fixed << setw(12) << setprecision(2) << matrix[row * cols + col] << flush;
+        }
+
+        cout << endl << flush;
+    }
+
+    cout << endl << flush;
+}
+
 void printStatistics(int threads, long runtime_seq, long runtime_par) {
     double acceleration = 1.0 * runtime_seq / runtime_par;
     double efficiency = acceleration / threads;

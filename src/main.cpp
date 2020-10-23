@@ -106,27 +106,29 @@ void command(int argc, char* argv[]) {
 }
 
 void initial(int rows, int cols) {
-    double ** matrix = allocateMatrix(rows, cols);
-    fillMatrix(rows, cols, matrix);
+    double * matrix = allocateRowOrderMatrix(rows, cols);
+    fillRowOrderMatrix(matrix, rows, cols);
 
     cout << "-----  INITIAL   -----" << endl << flush;
-    printMatrix(rows, cols, matrix);
+    printRowOrderMatrix(matrix, rows, cols);
 
-    deallocateMatrix(rows, matrix);
+    delete(matrix);
+    matrix = nullptr;
 }
 
 long sequential(int rows, int cols, int iters, double td, double h, int sleep) {
-    double ** matrix = allocateMatrix(rows, cols);
-    fillMatrix(rows, cols, matrix);
+    double * matrix = allocateRowOrderMatrix(rows, cols);
+    fillRowOrderMatrix(matrix, rows, cols);
 
     time_point<high_resolution_clock> timepoint_s = high_resolution_clock::now();
     solveSeq(rows, cols, iters, td, h, sleep, matrix);
     time_point<high_resolution_clock> timepoint_e = high_resolution_clock::now();
 
     cout << "----- SEQUENTIAL -----" << endl << flush;
-    printMatrix(rows, cols, matrix);
+    printRowOrderMatrix(matrix, rows, cols);
 
-    deallocateMatrix(rows, matrix);
+    delete(matrix);
+    matrix = nullptr;
     return duration_cast<microseconds>(timepoint_e - timepoint_s).count();
 }
 
