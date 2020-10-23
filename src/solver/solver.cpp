@@ -50,7 +50,7 @@ void solvePar(int rows, int cols, int iterations, double td, double h, int sleep
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    double c, l, r, t, b, q;
+    double c, l, r, t, b;
 
     double h_square = h * h;
 
@@ -60,12 +60,12 @@ void solvePar(int rows, int cols, int iterations, double td, double h, int sleep
         {
             for (int j = 0; j < cols; ++j)
             {
-                q = matrix[i, j];
-                l = matrix[i-1, j];
-                r = matrix[i+1, j];
-                t = matrix[i, j-1];
-                b = matrix[i, j+1];
-                matrix[i, j] = (1 - 4 * td / h_square) * q + (td / h_square) * (l + r + t + b);
+                c = matrix[i][j];
+                l = matrix[i - 1][j];
+                r = matrix[i + 1][j];
+                t = matrix[i][j - 1];
+                b = matrix[i][j + 1];
+                matrix[i][j] = (1 - 4 * td / h_square) * c + (td / h_square) * (l + r + t + b);
                 sleep_for(microseconds(500000));
             }
         }
