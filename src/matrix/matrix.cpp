@@ -1,4 +1,6 @@
 #include "matrix.hpp"
+#include <stdlib.h>
+#include <stdio.h>
 
 double ** allocateMatrix(int rows, int cols) {
     double ** matrix = new double*[rows];
@@ -32,9 +34,9 @@ void fillMatrix(int rows, int cols, double ** matrix) {
 // NEW FUNCTIONS FOR ROW ORDER MATRIX
 // **********************************
 
-int *allocateRowOrderMatrix(int rows, int cols)
+double* allocateRowOrderMatrix(int rows, int cols)
 {
-    int *matrix = malloc(rows * cols * sizeof(int));
+    double* matrix = (double*)malloc((rows * cols) * sizeof(double));
     return matrix;
 }
 
@@ -52,6 +54,11 @@ void fillRowOrderMatrix(int *rowOrderMatrix, int value, int rows, int cols)
 int getRankfromIndex(int rows, int row, int col)
 {
     return (rows * row) + col;
+}
+
+double getMatrixCell(double* matrix, int i, int j, int cols)
+{
+    return matrix[i * cols + j];
 }
 
 void printRowOrderMatrix(int rows, int cols, int *matrix)
