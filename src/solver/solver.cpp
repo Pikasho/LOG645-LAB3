@@ -51,7 +51,8 @@ void solvePar(int rows, int cols, int iterations, double td, double h, int sleep
     int *displs;                // array describing the displacements where each segment begins
     int rem = (rows*cols)%processCount; // elements remaining after division among processes
     int sum = 0;                // Sum of counts. Used to calculate displacements
-    double rec_buf[100];          // buffer where the received data should be stored
+    int rec_buf_size = (rows*cols/processCount) + 1;
+    double rec_buf[rec_buf_size];          // buffer where the received data should be stored
 
     sendcounts = new int[processCount];
     displs = new int[processCount];
