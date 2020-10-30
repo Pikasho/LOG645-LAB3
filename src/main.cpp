@@ -125,7 +125,7 @@ long sequential(int rows, int cols, int iters, double td, double h, int sleep) {
     time_point<high_resolution_clock> timepoint_e = high_resolution_clock::now();
 
     cout << "----- SEQUENTIAL -----" << endl << flush;
-    printRowOrderMatrix(matrix, rows, cols);
+    // printRowOrderMatrix(matrix, rows, cols);
 
     delete(matrix);
     matrix = nullptr;
@@ -142,7 +142,7 @@ long parallel(int rows, int cols, int iters, double td, double h, int sleep) {
 
     if(nullptr != matrix) {
         cout << "-----  PARALLEL  -----" << endl << flush;
-        printRowOrderMatrix(matrix, rows, cols);
+        // printRowOrderMatrix(matrix, rows, cols);
         free(matrix);
     }
 

@@ -8,9 +8,6 @@
 #include "solver.hpp"
 #include "../matrix/matrix.hpp"
 
-using std::memcpy;
-using std::cout;
-
 using std::this_thread::sleep_for;
 using std::chrono::microseconds;
 
@@ -73,12 +70,12 @@ void solvePar(int rows, int cols, int iterations, double td, double h, int sleep
 
     MPI_Scatterv(matrix, sendcounts, displs, MPI_DOUBLE, &rec_buf, 100, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-        // print what each process received
+    // print what each process received
     printf("%d: ", rank);
     for (int i = 0; i < sendcounts[rank]; i++) {
         printf("%f\t", rec_buf[i]);
     }
-
+    printf("\n");
 
     if(0 != rank) {
         free(matrix);
