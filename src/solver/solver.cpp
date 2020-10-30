@@ -44,12 +44,44 @@ void solveSeq(int rows, int cols, int iterations, double td, double h, int sleep
     }
 }
 
-void solvePar(int rows, int cols, int iterations, double td, double h, int sleep, double ** matrix) {
+void solvePar(int rows, int cols, int iterations, double td, double h, int sleep, double * matrix) {
     int rank;
+    int processCount;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &processCount);
+
+    int *sendcounts;            // array describing how many elements to send to each process
+    int *displs;                // array describing the displacements where each segment begins
+    int rem = (rows*cols)%processCount; // elements remaining after division among processes
+    int sum = 0;                // Sum of counts. Used to calculate displacements
+    double rec_buf[100];          // buffer where the received data should be stored
+
+    sendcounts = new int[processCount];
+    displs = new int[processCount];
+
+    // calculate send counts and displacements
+    for (int i = 0; i < processCount; i++) {
+        sendcounts[i] = (rows*cols)/processCount;
+        if (rem > 0) {
+            sendcounts[i]++;
+            rem--;
+        }
+
+        displs[i] = sum;
+        sum += sendcounts[i];
+    }
+
+    MPI_Scatterv(matrix, sendcounts, displs, MPI_DOUBLE, &rec_buf, 100, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+        // print what each process received
+    printf("%d: ", rank);
+    for (int i = 0; i < sendcounts[rank]; i++) {
+        printf("%f\t", rec_buf[i]);
+    }
+
 
     if(0 != rank) {
-        deallocateMatrix(rows, matrix);
+        free(matrix);
     }
 
     sleep_for(microseconds(500000));

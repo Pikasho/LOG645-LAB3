@@ -133,17 +133,17 @@ long sequential(int rows, int cols, int iters, double td, double h, int sleep) {
 }
 
 long parallel(int rows, int cols, int iters, double td, double h, int sleep) {
-    double ** matrix = allocateMatrix(rows, cols);
-    fillMatrix(rows, cols, matrix);
+    double * matrix = allocateRowOrderMatrix(rows, cols);
+    fillRowOrderMatrix(matrix, rows, cols);
 
     time_point<high_resolution_clock> timepoint_s = high_resolution_clock::now();
     solvePar(rows, cols, iters, td, h, sleep, matrix);
     time_point<high_resolution_clock> timepoint_e = high_resolution_clock::now();
 
-    if(nullptr != *matrix) {
+    if(nullptr != matrix) {
         cout << "-----  PARALLEL  -----" << endl << flush;
-        printMatrix(rows, cols, matrix);
-        deallocateMatrix(rows, matrix);
+        printRowOrderMatrix(matrix, rows, cols);
+        free(matrix);
     }
 
     return duration_cast<microseconds>(timepoint_e - timepoint_s).count();
