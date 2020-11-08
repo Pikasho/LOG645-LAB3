@@ -10,6 +10,11 @@
 
 using std::this_thread::sleep_for;
 using std::chrono::microseconds;
+using std::cout;
+using std::endl;
+using std::flush;
+using std::stod;
+using std::stoi;
 
 void solveSeq(int rows, int cols, int iterations, double td, double h, int sleep, double * matrix) {
     double c, l, r, t, b;
@@ -47,6 +52,9 @@ void solvePar(int rows, int cols, int iterations, double td, double h, int sleep
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &processCount);
 
+    double c, l, r, t, b;
+    double h_square = h * h;
+
     int *sendcounts;            // array describing how many elements to send to each process
     int *displs;                // array describing the displacements where each segment begins
     int rem = (rows*cols)%processCount; // elements remaining after division among processes
@@ -72,15 +80,67 @@ void solvePar(int rows, int cols, int iterations, double td, double h, int sleep
     MPI_Scatterv(matrix, sendcounts, displs, MPI_DOUBLE, &rec_buf, 100, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
     // print what each process received
-    printf("%d: ", rank);
-    for (int i = 0; i < sendcounts[rank]; i++) {
-        printf("%f\t", rec_buf[i]);
-    }
-    printf("\n");
+    // printf("%d: ", rank);
+    // for (int i = 0; i < sendcounts[rank]; i++) {
+    //     printf("%f\t", rec_buf[i]);
+    // }
+    // printf("\n");
 
-    if(0 != rank) {
-        free(matrix);
+
+    double * processPrevBuffer = new double[sendcounts[rank]];
+    double * processCurrBuffer = new double[sendcounts[rank]];
+
+    for(int k = 0; k < iterations; k++) 
+    {
+        memcpy(processPrevBuffer, rec_buf, sendcounts[rank] * sizeof(double));
+        memcpy(processCurrBuffer, rec_buf, sendcounts[rank] * sizeof(double));
+
+        for(int i = 0; i < sendcounts[rank]; i++)
+        {
+            c = processCurrBuffer[i];
+            t = processPrevBuffer[i];
+            b = 0;
+            l = 0;
+            r = 0;
+
+
+            // if(rank != 0)
+            // {
+            //     int test = i - cols;
+
+            //     if(test < 0)
+            //     {
+            //         int toSend[2];
+            //         toSend[0] = rec_buf[i];
+            //         toSend[1] = test;
+            //         MPI_Send(toSend, 2, MPI_DOUBLE, rank - 1, 0, MPI_COMM_WORLD); 
+            //     }
+            // }
+            
+            // if(rank != processCount - 1)
+            // {
+            //     int test = i - cols;
+
+            // }
+
+            sleep_for(microseconds(sleep));
+            rec_buf[i] = c * (1.0 - 4.0 * td / h_square) + (t + b + l + r) * (td / h_square);
+            // rec_buf[i] = 0;
+        }
+
+        memcpy(processPrevBuffer, processCurrBuffer, sendcounts[rank] * sizeof(double));
     }
 
-    sleep_for(microseconds(500000));
+    MPI_Gatherv(rec_buf, sendcounts[rank], MPI_DOUBLE, matrix, sendcounts, displs, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+
+    // if(0 != rank) {
+    //     free(matrix);
+    // }
+
+    if(rank == 0)
+    {
+        cout << "-----  PARALLEL  -----" << endl << flush;
+        printRowOrderMatrix(matrix, rows, cols);
+    }
 }

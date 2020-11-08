@@ -125,7 +125,7 @@ long sequential(int rows, int cols, int iters, double td, double h, int sleep) {
     time_point<high_resolution_clock> timepoint_e = high_resolution_clock::now();
 
     cout << "----- SEQUENTIAL -----" << endl << flush;
-    // printRowOrderMatrix(matrix, rows, cols);
+    printRowOrderMatrix(matrix, rows, cols);
 
     delete(matrix);
     matrix = nullptr;
@@ -140,11 +140,15 @@ long parallel(int rows, int cols, int iters, double td, double h, int sleep) {
     solvePar(rows, cols, iters, td, h, sleep, matrix);
     time_point<high_resolution_clock> timepoint_e = high_resolution_clock::now();
 
-    if(nullptr != matrix) {
-        cout << "-----  PARALLEL  -----" << endl << flush;
-        // printRowOrderMatrix(matrix, rows, cols);
-        free(matrix);
-    }
+    // if(nullptr != matrix) {
+    //     cout << "-----  PARALLEL  -----" << endl << flush;
+    //     printRowOrderMatrix(matrix, rows, cols);
+    //     delete(matrix);
+    //     matrix = nullptr;
+    // }
+
+    delete(matrix);
+    matrix = nullptr;
 
     return duration_cast<microseconds>(timepoint_e - timepoint_s).count();
 }
