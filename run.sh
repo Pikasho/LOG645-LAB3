@@ -5,10 +5,10 @@ echo "<<<"
 mpirun -np 64 ./lab3 9 9 3 0.00025 0.1
 echo ">>>"
 
-echo ""
-echo "<<<"
-mpirun -np 32 ./lab3 15 9 10 0.00025 1
-echo ">>>"
+# echo ""
+# echo "<<<"
+# mpirun -np 32 ./lab3 15 9 10 0.00025 1
+# echo ">>>"
 
 make clean
 

@@ -89,54 +89,52 @@ void solvePar(int rows, int cols, int iterations, double td, double h, int sleep
 
     double * processPrevBuffer = new double[sendcounts[rank]];
     double * processCurrBuffer = new double[sendcounts[rank]];
+    double * nextRankValues;
+
+    int processIndexStart = 0;
+    for(int i = 0; i < rank; i++)
+    {
+        processIndexStart += sendcounts[i];
+    }
+
+    // std::cout << "process " << rank << " starts at " << processIndexStart << "\n";
+
 
     for(int k = 0; k < iterations; k++) 
     {
         memcpy(processPrevBuffer, rec_buf, sendcounts[rank] * sizeof(double));
         memcpy(processCurrBuffer, rec_buf, sendcounts[rank] * sizeof(double));
 
+        // if(rank > 0)
+        // {
+        //     MPI_Send(rec_buf, sendcounts[rank], MPI_DOUBLE, rank - 1, 0, MPI_COMM_WORLD); 
+        // }
+
+        // if(rank < processCount - 1)
+        // {
+        //     nextRankValues = new double[sendcounts[rank + 1]];
+        //     MPI_Recv(&nextRankValues, sendcounts[rank + 1], MPI_DOUBLE, rank + 1, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        // }
+
+        
         for(int i = 0; i < sendcounts[rank]; i++)
         {
+            if((processIndexStart + i) % cols == 0 || (processIndexStart + i + 1) % cols == 0) continue;
+
             c = processCurrBuffer[i];
             t = processPrevBuffer[i];
-            b = 0;
-            l = 0;
-            r = 0;
-
-
-            // if(rank != 0)
-            // {
-            //     int test = i - cols;
-
-            //     if(test < 0)
-            //     {
-            //         int toSend[2];
-            //         toSend[0] = rec_buf[i];
-            //         toSend[1] = test;
-            //         MPI_Send(toSend, 2, MPI_DOUBLE, rank - 1, 0, MPI_COMM_WORLD); 
-            //     }
-            // }
-            
-            // if(rank != processCount - 1)
-            // {
-            //     int test = i - cols;
-
-            // }
+            b = matrix[processIndexStart + i];
+            l = matrix[processIndexStart - 1];
+            r = matrix[processIndexStart + 1];
 
             sleep_for(microseconds(sleep));
             rec_buf[i] = c * (1.0 - 4.0 * td / h_square) + (t + b + l + r) * (td / h_square);
-            // rec_buf[i] = 0;
         }
 
         memcpy(processPrevBuffer, processCurrBuffer, sendcounts[rank] * sizeof(double));
     }
 
     MPI_Gatherv(rec_buf, sendcounts[rank], MPI_DOUBLE, matrix, sendcounts, displs, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
-
-    // if(0 != rank) {
-    //     free(matrix);
-    // }
 
     if(rank == 0)
     {
