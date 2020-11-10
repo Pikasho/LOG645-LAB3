@@ -38,6 +38,16 @@ void solveSeq(int rows, int cols, int iterations, double td, double h, int sleep
                 l = lineCurrBuffer[j - 1];
                 r = lineCurrBuffer[j + 1];
 
+                // if(k == 0)
+                // {
+                //     std::cout << t << "    \n";
+                // }
+
+                // if(k == 1)
+                // {
+                //     std::cout << b << "    \n";
+                // }
+
                 sleep_for(microseconds(sleep));
                 matrix[i * cols + j] = c * (1.0 - 4.0 * td / h_square) + (t + b + l + r) * (td / h_square);
             }
@@ -56,15 +66,10 @@ void solvePar(int rows, int cols, int iterations, double td, double h, int sleep
     double c, l, r, t, b;
     double h_square = h * h;
 
-    int rowsPerProcess = ceil((double)rows / processCount);
+    int rowsPerProcess = floor((double)rows / processCount);         
+    int sum = 0;    
     int *sendcounts;            
-    int *displs;                
-    int rem = (rows*cols)%processCount; 
-    int sum = 0;                
-
-
-    int rec_buf_size = (rowsPerProcess * cols);
-    double rec_buf[rec_buf_size];          
+    int *displs;                         
 
     int remainingRows = rows;
 
@@ -73,12 +78,10 @@ void solvePar(int rows, int cols, int iterations, double td, double h, int sleep
 
     // calculate send counts and displacements
     for (int i = 0; i < processCount; i++) {
-        sendcounts[i] = 0;
-
-        if(remainingRows > rowsPerProcess)
+        if(i != processCount -1)
         {
             sendcounts[i] = rowsPerProcess * cols;
-            remainingRows = remainingRows - rowsPerProcess;
+            remainingRows -= rowsPerProcess;
             displs[i] = sum;
             sum += sendcounts[i];
         }
@@ -91,10 +94,11 @@ void solvePar(int rows, int cols, int iterations, double td, double h, int sleep
         }
     }
 
+    // for(int i = 0; i < processCount; i++)
+    // {
+    //     std::cout << "\n rank: " << rank << " " << sendcounts[i];
+    // }
 
-
-    double * processPrevBuffer = new double[sendcounts[rank]];
-    double * processCurrBuffer = new double[sendcounts[rank]];
 
     int processIndexStart = 0;
     for(int i = 0; i < rank; i++)
@@ -102,29 +106,83 @@ void solvePar(int rows, int cols, int iterations, double td, double h, int sleep
         processIndexStart += sendcounts[i];
     }
 
-    // std::cout << "process " << rank << " starts at " << processIndexStart << "\n";
 
+    int rec_buf_size = sendcounts[rank];
+    double rec_buf[rec_buf_size];    
+    double calcBuf[sendcounts[rank]];
 
     for(int k = 0; k < iterations; k++) 
     {
-        MPI_Scatterv(matrix, sendcounts, displs, MPI_DOUBLE, rec_buf, 100, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        MPI_Scatterv(matrix, sendcounts, displs, MPI_DOUBLE, rec_buf, sendcounts[rank], MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+        int prevProcessCapacity = 0;
+        if(rank > 0) prevProcessCapacity = sendcounts[rank - 1];
+
+        int nextProcessCapacity = 0;
+        if(rank < processCount - 1) nextProcessCapacity = sendcounts[rank + 1];
+
+        double prevRowBuf[prevProcessCapacity];
+
+        double nextRowBuf[nextProcessCapacity];
+
+        memcpy(calcBuf, rec_buf, sendcounts[rank] * sizeof(double));
+
+        // send the rows in this rank to previous rank 
+        if(rank < processCount - 1)
+        {
+            MPI_Send(rec_buf, sendcounts[rank], MPI_DOUBLE, rank + 1, 0, MPI_COMM_WORLD);
+
+            MPI_Recv(nextRowBuf, sendcounts[rank + 1], MPI_DOUBLE, rank + 1, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        }
+
+        if(rank > 0)
+        {
+            MPI_Recv(prevRowBuf, sendcounts[rank - 1], MPI_DOUBLE, rank - 1, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+            MPI_Send(rec_buf, sendcounts[rank], MPI_DOUBLE, rank - 1, 0, MPI_COMM_WORLD);
+        }
 
         for(int i = 0; i < sendcounts[rank]; i++)
         {
             if((processIndexStart + i) % cols == 0 || (processIndexStart + i + 1) % cols == 0) continue;
             if(processIndexStart + i < cols || processIndexStart + i > rows * cols - cols) continue;
 
-            c = matrix[processIndexStart + i];
-            t = matrix[processIndexStart + i - cols];
-            b = matrix[processIndexStart + i + cols];
-            l = matrix[processIndexStart + i - 1];
-            r = matrix[processIndexStart + i + 1];
+            c = rec_buf[i];
+            
+
+            if(i - cols > 0)
+            {
+                t = rec_buf[i - cols];
+            }
+            else
+            {
+                t = prevRowBuf[i];
+            }
+
+            if(i + cols < sendcounts[rank])
+            {
+                b = rec_buf[i + cols];
+            }
+            else
+            {
+                b = nextRowBuf[i];
+            }
+
+            // std::cout << "rank: " << rank << "   " << sendcounts[rank] << "\n";
+            
+
+            l = rec_buf[i - 1];
+            r = rec_buf[i + 1];
+            
+
 
             sleep_for(microseconds(sleep));
-            rec_buf[i] = c * (1.0 - 4.0 * td / h_square) + (t + b + l + r) * (td / h_square);
+            calcBuf[i] = c * (1.0 - 4.0 * td / h_square) + (t + b + l + r) * (td / h_square);
         }
-        MPI_Gatherv(rec_buf, sendcounts[rank], MPI_DOUBLE, matrix, sendcounts, displs, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+        MPI_Gatherv(calcBuf, sendcounts[rank], MPI_DOUBLE, matrix, sendcounts, displs, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     }
+
 
 
     if(rank == 0)
