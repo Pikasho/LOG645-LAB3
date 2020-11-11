@@ -3005,7 +3005,7 @@ Command: ./lab3 1000 15 15 0.00025 0.1
         0.00    12324.74    23199.17    32165.52    39146.29    44133.04    47125.11    48122.47    47125.11    44133.04    39146.29    32165.52    23199.17    12324.74        0.00
         0.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00
 
-Runtime sequential: 11.39 seconds
-Runtime parallel  : 0.73 seconds
-Acceleration      : 15.55
-Efficiency        : 0.24
+Runtime sequential: 11.49 seconds
+Runtime parallel  : 0.71 seconds
+Acceleration      : 16.16
+Efficiency        : 0.25

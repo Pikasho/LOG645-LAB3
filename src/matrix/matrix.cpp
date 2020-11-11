@@ -34,12 +34,14 @@ void fillMatrix(int rows, int cols, double ** matrix) {
 // NEW FUNCTIONS FOR ROW ORDER MATRIX
 // **********************************
 
+// Allocate the memory for a row order matrix
 double* allocateRowOrderMatrix(int rows, int cols)
 {
     double* matrix = (double*)malloc((rows * cols) * sizeof(double));
     return matrix;
 }
 
+// Fill a row order matrix with the correct values for the problem
 void fillRowOrderMatrix(double *rowOrderMatrix, int rows, int cols)
 {
     for (int i = 0; i < rows; i++)
@@ -51,11 +53,7 @@ void fillRowOrderMatrix(double *rowOrderMatrix, int rows, int cols)
     }
 }
 
-int getRankfromIndex(int rows, int row, int col)
-{
-    return (rows * row) + col;
-}
-
+// returns the matric cell at [i, j] in a row order matrix
 double getMatrixCell(double* matrix, int i, int j, int cols)
 {
     return matrix[i * cols + j];

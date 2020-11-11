@@ -17,6 +17,7 @@ using std::flush;
 using std::stod;
 using std::stoi;
 
+// Function to solve the problem sequentially
 void solveSeq(int rows, int cols, int iterations, double td, double h, int sleep, double * matrix) {
     double c, l, r, t, b;
     
@@ -47,99 +48,119 @@ void solveSeq(int rows, int cols, int iterations, double td, double h, int sleep
     }
 }
 
+// Function to solve the problem in parallel using MPI
 void solvePar(int rows, int cols, int iterations, double td, double h, int sleep, double * matrix) {
-    int rank;
-    int processCount;
+    int rank;           // rank of the current process
+    int processCount;   // number of processes running
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &processCount);
 
-    double c, l, r, t, b;
+    double c, l, r, t, b;  
     double h_square = h * h;
 
-    int rowsPerProcessFloored = floor((double)rows / processCount);    
-    int rowsPerProcessCeiled = ceil((double)rows / processCount);  
+    int rowsPerProcessFloored = floor((double)rows / processCount); // number of rows we will give to each process 
+    if(rowsPerProcessFloored == 0)  rowsPerProcessFloored = 1;      // if the number of rows per process was floored to 0, we set it to 1 manually
 
+    // variables we will use for Scatterv 
     int sum = 0;    
-    int *sendcounts;            
+    int *sendCounts;            
     int *displs;                         
-
-    int remainingRows = rows;
-
-    sendcounts = new int[processCount];
+    sendCounts = new int[processCount];
     displs = new int[processCount];
 
-    // calculate send counts and displacements
+    // set remainingRows to the number of rows
+    int remainingRows = rows;
+
+    // Logic for setting up how we will split the rows in the processes
+    // sendCounts will contain how many elements each rank will be attributed
+    // displs will contain the displacements
     for (int i = 0; i < processCount; i++)
     {
-        if(i != processCount -1)
+        if(remainingRows <= 0)
         {
-            sendcounts[i] = rowsPerProcessFloored * cols;
+            sendCounts[i] = 0;
+            continue;
+        }
+
+        // every process except the last will contained the floored rowsPerProcess
+        if(i != processCount - 1)
+        {
+            sendCounts[i] = rowsPerProcessFloored * cols;
             remainingRows -= rowsPerProcessFloored;
             displs[i] = sum;
-            sum += sendcounts[i];
+            sum += sendCounts[i];
         }
+
+        // the last proceess will contain the remaining rows
         else
         {
-            sendcounts[i] = remainingRows * cols;
+            sendCounts[i] = remainingRows * cols;
             displs[i] = sum;
-            sum += sendcounts[i];
-            break;
+            sum += sendCounts[i];
         }
     }
 
+    // Keep track of the the matrix index of the first element in the process
     int processIndexStart = 0;
     for(int i = 0; i < rank; i++)
     {
-        processIndexStart += sendcounts[i];
+        processIndexStart += sendCounts[i];
     }
 
 
-    int rec_buf_size = sendcounts[rank];
-    double rec_buf[rec_buf_size];    
-    double calcBuf[sendcounts[rank]];
+    int recBufSize = sendCounts[rank];  // size of the receiving buffer
+    double recBuf[recBufSize];          // buffer to contain the scattered elements
+    double calcBuf[sendCounts[rank]];   // buffer to contain the calculated values
 
-    MPI_Scatterv(matrix, sendcounts, displs, MPI_DOUBLE, rec_buf, sendcounts[rank], MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    // Scatter the elements in all the processes
+    MPI_Scatterv(matrix, sendCounts, displs, MPI_DOUBLE, recBuf, sendCounts[rank], MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
+    // Start of the iterations
     for(int k = 0; k < iterations; k++) 
     {
+        // setup the capacity for communications with previous and next processes
+        int prevProcessCapacity = sendCounts[rank];
+        if(rank > 0) prevProcessCapacity = sendCounts[rank - 1];
 
-        int prevProcessCapacity = sendcounts[rank];
-        if(rank > 0) prevProcessCapacity = sendcounts[rank - 1];
+        // setup the capacity for communications with previous and next processes
+        int nextProcessCapacity = sendCounts[rank];
+        if(rank < processCount - 1) nextProcessCapacity = sendCounts[rank + 1];
 
-        int nextProcessCapacity = sendcounts[rank];
-        if(rank < processCount - 1) nextProcessCapacity = sendcounts[rank + 1];
+        double prevRowBuf[prevProcessCapacity]; // initialize the receiving buffers for the communications
+        double nextRowBuf[nextProcessCapacity]; // initialize the receiving buffers for the communications
+        memcpy(calcBuf, recBuf, sendCounts[rank] * sizeof(double));
 
-        double prevRowBuf[prevProcessCapacity];
-
-        double nextRowBuf[nextProcessCapacity];
-
-        memcpy(calcBuf, rec_buf, sendcounts[rank] * sizeof(double));
-
-        // send the rows in this rank to previous rank 
         if(rank < processCount - 1)
         {
-            MPI_Send(rec_buf, sendcounts[rank], MPI_DOUBLE, rank + 1, 0, MPI_COMM_WORLD);
+            // send to the next process
+            MPI_Send(recBuf, sendCounts[rank], MPI_DOUBLE, rank + 1, 0, MPI_COMM_WORLD);
 
-            MPI_Recv(nextRowBuf, sendcounts[rank + 1], MPI_DOUBLE, rank + 1, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            // receive from the next process
+            MPI_Recv(nextRowBuf, sendCounts[rank + 1], MPI_DOUBLE, rank + 1, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         }
 
         if(rank > 0)
         {
-            MPI_Recv(prevRowBuf, sendcounts[rank - 1], MPI_DOUBLE, rank - 1, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            // send to the previous process
+            MPI_Recv(prevRowBuf, sendCounts[rank - 1], MPI_DOUBLE, rank - 1, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-            MPI_Send(rec_buf, sendcounts[rank], MPI_DOUBLE, rank - 1, 0, MPI_COMM_WORLD);
+            // receive from the previous process
+            MPI_Send(recBuf, sendCounts[rank], MPI_DOUBLE, rank - 1, 0, MPI_COMM_WORLD);
         }
 
-        for(int i = 0; i < sendcounts[rank]; i++)
+        // for each value in the current process
+        for(int i = 0; i < sendCounts[rank]; i++)
         {
-            if((processIndexStart + i) % cols == 0 || (processIndexStart + i + 1) % cols == 0) continue;
-            if(processIndexStart + i < cols || processIndexStart + i > rows * cols - cols) continue;
+            if((processIndexStart + i) % cols == 0 || (processIndexStart + i + 1) % cols == 0) continue;    // make sure we ignore the first and last cols
+            if(processIndexStart + i < cols || processIndexStart + i > rows * cols - cols) continue;        // make sure we ignore the first and last rows
 
-            c = rec_buf[i];
+            // [i, j, k]
+            c = recBuf[i];
 
+            // [i - 1, j, k]
             if(i - cols >= 0)
             {
-                t = rec_buf[i - cols];
+                t = recBuf[i - cols];
             }
             else
             {
@@ -147,24 +168,32 @@ void solvePar(int rows, int cols, int iterations, double td, double h, int sleep
                 t = prevRowBuf[index];
             }
 
-            if(i + cols < sendcounts[rank])
+            // [i + 1, j, k]
+            if(i + cols < sendCounts[rank])
             {
-                b = rec_buf[i + cols];
+                b = recBuf[i + cols];
             }
             else
             {
-                int index = i + cols - sendcounts[rank];
+                int index = i + cols - sendCounts[rank];
                 b = nextRowBuf[index];
             }
         
-            l = rec_buf[i - 1];
-            r = rec_buf[i + 1];
+            l = recBuf[i - 1];  //[i, j - 1, k]
+            r = recBuf[i + 1];  // [i, j + 1, k]
             
-            sleep_for(microseconds(sleep));
-            calcBuf[i] = c * (1.0 - 4.0 * td / h_square) + (t + b + l + r) * (td / h_square);
+            sleep_for(microseconds(sleep)); //sleep
+            calcBuf[i] = c * (1.0 - 4.0 * td / h_square) + (t + b + l + r) * (td / h_square);   // formula
         }
-        memcpy(rec_buf, calcBuf, sendcounts[rank] * sizeof(double));
+
+        // cpy the calcBuf into recBuf
+        memcpy(recBuf, calcBuf, sendCounts[rank] * sizeof(double));
     }
 
-    MPI_Gatherv(calcBuf, sendcounts[rank], MPI_DOUBLE, matrix, sendcounts, displs, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    // gather from all the process into the main matrix
+    MPI_Gatherv(calcBuf, sendCounts[rank], MPI_DOUBLE, matrix, sendCounts, displs, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+    // free some pointers
+    free(sendCounts);
+    free(displs);
 }

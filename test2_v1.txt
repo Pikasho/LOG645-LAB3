@@ -80,7 +80,7 @@ Command: ./lab3 25 19 700 0.00025 0.1
         0.00      124.03      244.25      356.96      458.73      546.48      617.57      669.90      701.92      712.70      701.92      669.90      617.57      546.48      458.73      356.96      244.25      124.03        0.00
         0.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00
 
-Runtime sequential: 15.61 seconds
+Runtime sequential: 28.50 seconds
 Runtime parallel  : 2.81 seconds
-Acceleration      : 5.55
-Efficiency        : 0.93
+Acceleration      : 10.13
+Efficiency        : 1.69
