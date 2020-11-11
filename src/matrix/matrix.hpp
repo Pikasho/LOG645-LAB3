@@ -1,3 +1,11 @@
+/*  Matrix
+*
+* Fonctions utilitaires pour des matrices stockées dans un tableau 2d ou 1d
+*
+* Philippe Bolduc
+* Rémi Thibault
+*/
+
 #ifndef MATRIX_HPP
 #define MATRIX_HPP
 

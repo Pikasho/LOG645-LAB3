@@ -1,3 +1,11 @@
+/*  Matrix
+*
+* Fonctions utilitaires pour des matrices stockées dans un tableau 2d ou 1d
+*
+* Philippe Bolduc
+* Rémi Thibault
+*/
+
 #include "matrix.hpp"
 #include <stdlib.h>
 #include <stdio.h>

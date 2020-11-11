@@ -1,3 +1,11 @@
+/* Main
+* 
+* Programme principal pouvant être lancé par la ligne de commande
+* 
+* Philippe Bolduc
+* Rémi Thibault
+*/
+
 #include <iostream>
 #include <iomanip>
 #include <chrono>

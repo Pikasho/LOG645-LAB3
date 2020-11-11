@@ -1,3 +1,11 @@
+/*  Solver
+*
+* Fonctions permettant de solve le problème de transfert de chaleur sur une plaque 2D
+*
+* Philippe Bolduc
+* Rémi Thibault
+*/
+
 #include <chrono>
 #include <cstring>
 #include <thread>
