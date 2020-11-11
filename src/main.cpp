@@ -14,7 +14,7 @@ void command(int argc, char* argv[]);
 
 void initial(int rows, int cols);
 long sequential(int rows, int cols, int iters, double td, double h, int sleep);
-long parallel(int rows, int cols, int iters, double td, double h, int sleep);
+long parallel(int rows, int cols, int iters, double td, double h, int sleep, int rank);
 
 using namespace std::chrono;
 
@@ -37,6 +37,7 @@ int main(int argc, char* argv[]) {
     // MPI variables.
     int mpi_status;
     int rank;
+    int nproc;
 
     // Resolution variables.
     // Sleep will be in microseconds during execution.
@@ -63,7 +64,7 @@ int main(int argc, char* argv[]) {
     td = stod(argv[4], nullptr);
     h = stod(argv[5], nullptr);
 
-    
+    MPI_Comm_size(MPI_COMM_WORLD, &nproc);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     if(0 == rank) {
@@ -75,10 +76,10 @@ int main(int argc, char* argv[]) {
     // Ensure that no process will start computing early.
     MPI_Barrier(MPI_COMM_WORLD);
 
-    runtime_par = parallel(rows, cols, iters, td, h, sleep);
+    runtime_par = parallel(rows, cols, iters, td, h, sleep, rank);
 
     if(0 == rank) {
-        printStatistics(1, runtime_seq, runtime_par);
+        printStatistics(nproc, runtime_seq, runtime_par);
     }
 
     mpi_status = MPI_Finalize();
@@ -132,7 +133,7 @@ long sequential(int rows, int cols, int iters, double td, double h, int sleep) {
     return duration_cast<microseconds>(timepoint_e - timepoint_s).count();
 }
 
-long parallel(int rows, int cols, int iters, double td, double h, int sleep) {
+long parallel(int rows, int cols, int iters, double td, double h, int sleep, int rank) {
     double * matrix = allocateRowOrderMatrix(rows, cols);
     fillRowOrderMatrix(matrix, rows, cols);
 
@@ -140,12 +141,10 @@ long parallel(int rows, int cols, int iters, double td, double h, int sleep) {
     solvePar(rows, cols, iters, td, h, sleep, matrix);
     time_point<high_resolution_clock> timepoint_e = high_resolution_clock::now();
 
-    // if(nullptr != matrix) {
-    //     cout << "-----  PARALLEL  -----" << endl << flush;
-    //     printRowOrderMatrix(matrix, rows, cols);
-    //     delete(matrix);
-    //     matrix = nullptr;
-    // }
+    if(rank == 0) {
+        cout << "-----  PARALLEL  -----" << endl << flush;
+        printRowOrderMatrix(matrix, rows, cols);
+    }
 
     delete(matrix);
     matrix = nullptr;

@@ -38,16 +38,6 @@ void solveSeq(int rows, int cols, int iterations, double td, double h, int sleep
                 l = lineCurrBuffer[j - 1];
                 r = lineCurrBuffer[j + 1];
 
-                // if(k == 0)
-                // {
-                //     std::cout << t << "    \n";
-                // }
-
-                // if(k == 1)
-                // {
-                //     std::cout << b << "    \n";
-                // }
-
                 sleep_for(microseconds(sleep));
                 matrix[i * cols + j] = c * (1.0 - 4.0 * td / h_square) + (t + b + l + r) * (td / h_square);
             }
@@ -66,7 +56,9 @@ void solvePar(int rows, int cols, int iterations, double td, double h, int sleep
     double c, l, r, t, b;
     double h_square = h * h;
 
-    int rowsPerProcess = floor((double)rows / processCount);         
+    int rowsPerProcessFloored = floor((double)rows / processCount);    
+    int rowsPerProcessCeiled = ceil((double)rows / processCount);  
+
     int sum = 0;    
     int *sendcounts;            
     int *displs;                         
@@ -77,11 +69,12 @@ void solvePar(int rows, int cols, int iterations, double td, double h, int sleep
     displs = new int[processCount];
 
     // calculate send counts and displacements
-    for (int i = 0; i < processCount; i++) {
+    for (int i = 0; i < processCount; i++)
+    {
         if(i != processCount -1)
         {
-            sendcounts[i] = rowsPerProcess * cols;
-            remainingRows -= rowsPerProcess;
+            sendcounts[i] = rowsPerProcessFloored * cols;
+            remainingRows -= rowsPerProcessFloored;
             displs[i] = sum;
             sum += sendcounts[i];
         }
@@ -94,12 +87,6 @@ void solvePar(int rows, int cols, int iterations, double td, double h, int sleep
         }
     }
 
-    // for(int i = 0; i < processCount; i++)
-    // {
-    //     std::cout << "\n rank: " << rank << " " << sendcounts[i];
-    // }
-
-
     int processIndexStart = 0;
     for(int i = 0; i < rank; i++)
     {
@@ -111,14 +98,15 @@ void solvePar(int rows, int cols, int iterations, double td, double h, int sleep
     double rec_buf[rec_buf_size];    
     double calcBuf[sendcounts[rank]];
 
+    MPI_Scatterv(matrix, sendcounts, displs, MPI_DOUBLE, rec_buf, sendcounts[rank], MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
     for(int k = 0; k < iterations; k++) 
     {
-        MPI_Scatterv(matrix, sendcounts, displs, MPI_DOUBLE, rec_buf, sendcounts[rank], MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-        int prevProcessCapacity = 0;
+        int prevProcessCapacity = sendcounts[rank];
         if(rank > 0) prevProcessCapacity = sendcounts[rank - 1];
 
-        int nextProcessCapacity = 0;
+        int nextProcessCapacity = sendcounts[rank];
         if(rank < processCount - 1) nextProcessCapacity = sendcounts[rank + 1];
 
         double prevRowBuf[prevProcessCapacity];
@@ -148,15 +136,15 @@ void solvePar(int rows, int cols, int iterations, double td, double h, int sleep
             if(processIndexStart + i < cols || processIndexStart + i > rows * cols - cols) continue;
 
             c = rec_buf[i];
-            
 
-            if(i - cols > 0)
+            if(i - cols >= 0)
             {
                 t = rec_buf[i - cols];
             }
             else
             {
-                t = prevRowBuf[i];
+                int index = i - cols + prevProcessCapacity;
+                t = prevRowBuf[index];
             }
 
             if(i + cols < sendcounts[rank])
@@ -165,29 +153,18 @@ void solvePar(int rows, int cols, int iterations, double td, double h, int sleep
             }
             else
             {
-                b = nextRowBuf[i];
+                int index = i + cols - sendcounts[rank];
+                b = nextRowBuf[index];
             }
-
-            // std::cout << "rank: " << rank << "   " << sendcounts[rank] << "\n";
-            
-
+        
             l = rec_buf[i - 1];
             r = rec_buf[i + 1];
             
-
-
             sleep_for(microseconds(sleep));
             calcBuf[i] = c * (1.0 - 4.0 * td / h_square) + (t + b + l + r) * (td / h_square);
         }
-
-        MPI_Gatherv(calcBuf, sendcounts[rank], MPI_DOUBLE, matrix, sendcounts, displs, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        memcpy(rec_buf, calcBuf, sendcounts[rank] * sizeof(double));
     }
 
-
-
-    if(rank == 0)
-    {
-        cout << "-----  PARALLEL  -----" << endl << flush;
-        printRowOrderMatrix(matrix, rows, cols);
-    }
+    MPI_Gatherv(calcBuf, sendcounts[rank], MPI_DOUBLE, matrix, sendcounts, displs, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 }
